@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## LavaLust 4 (Latest 4.2.4)
 <p align="center">
     <img width="200" height="300" src="https://raw.githubusercontent.com/ronmarasigan/LavaLust-Docs/master/assets/images/logo1.png">
@@ -40,3 +41,6 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 </p>
+=======
+# HIV_LavaLust
+>>>>>>> 6a1465fcbafdea29bd9557752eb26a55b41dec78
