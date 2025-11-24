@@ -1,9 +1,6 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
 class UsersController extends Controller {
 
     public function __construct() {
@@ -16,13 +13,9 @@ class UsersController extends Controller {
         $this->call->model('UsersModel');
         $this->call->library('auth');
 
-        // SMTP Config
-        $this->smtpHost = 'smtp.gmail.com';
-        $this->smtpPort = 587;
-        $this->smtpSecure = 'tls';
-        $this->smtpUser = 'kayemarquez026@gmail.com';
-        $this->smtpPass = 'mfau qgnl zisp fujy';
-        $this->fromEmail = 'kayemarquez026@gmail.com';
+        // Resend API Config - WORKING SA RENDER!
+        $this->resendApiKey = 're_xxxxxxxxxxxxxxxxxxxxxxxx'; // GET FROM RESEND.COM
+        $this->fromEmail = 'noreply@yourdomain.com'; // MUST BE VERIFIED DOMAIN IN RESEND
         $this->fromName  = 'HIV Treatment Monitoring System';
     }
 
@@ -322,46 +315,48 @@ class UsersController extends Controller {
     }
 
     // ==============================
-    // ✉️ SEND VERIFICATION EMAIL
+    // ✉️ SEND VERIFICATION EMAIL (RESEND API)
     // ==============================
     private function _sendVerificationEmail($userId, $toEmail, $toName) {
-        if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
-            $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
-            if (file_exists($autoloadPath)) require_once $autoloadPath;
-        }
-
-        if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) return false;
-
-        try {
-            $mail = new PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = $this->smtpHost;
-            $mail->SMTPAuth = true;
-            $mail->Username = $this->smtpUser;
-            $mail->Password = $this->smtpPass;
-            $mail->SMTPSecure = $this->smtpSecure;
-            $mail->Port = $this->smtpPort;
-
-            $mail->setFrom($this->fromEmail, $this->fromName);
-            $mail->addAddress($toEmail, $toName);
-
-            $mail->isHTML(true);
-            $mail->Subject = 'Please verify your email';
-            $verifyLink = site_url("auth/verify/{$userId}");
-            $mail->Body = "
+        $verifyLink = site_url("auth/verify/{$userId}");
+        
+        $emailData = [
+            'from' => $this->fromName . ' <' . $this->fromEmail . '>',
+            'to' => $toEmail,
+            'subject' => 'Please verify your email',
+            'html' => "
                 <p>Hi " . htmlspecialchars($toName) . ",</p>
                 <p>Thank you for registering. Please click the link below to verify your email:</p>
                 <p><a href='{$verifyLink}'>Verify my email</a></p>
                 <p>If the link doesn't work, copy & paste this URL into your browser: {$verifyLink}</p>
                 <p>— {$this->fromName}</p>
-            ";
-            $mail->AltBody = "Hi {$toName},\nPlease verify your email: {$verifyLink}\n— {$this->fromName}";
+            ",
+            'text' => "Hi {$toName},\nThank you for registering. Please verify your email: {$verifyLink}\n— {$this->fromName}"
+        ];
 
-            $mail->send();
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
+        return $this->_sendResendEmail($emailData);
+    }
+
+    // ==============================
+    // 🔧 RESEND API HELPER FUNCTION
+    // ==============================
+    private function _sendResendEmail($emailData) {
+        $ch = curl_init();
+        
+        curl_setopt($ch, CURLOPT_URL, 'https://api.resend.com/emails');
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($emailData));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->resendApiKey
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        return $httpCode === 200;
     }
 }
 ?>
