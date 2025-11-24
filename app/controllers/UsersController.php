@@ -12,11 +12,8 @@ class UsersController extends Controller {
 
         $this->call->model('UsersModel');
         $this->call->library('auth');
-
-        // Resend API Config - WORKING SA RENDER!
-        $this->resendApiKey = 're_xxxxxxxxxxxxxxxxxxxxxxxx'; // GET FROM RESEND.COM
-        $this->fromEmail = 'noreply@yourdomain.com'; // MUST BE VERIFIED DOMAIN IN RESEND
-        $this->fromName  = 'HIV Treatment Monitoring System';
+        
+        // ✅ REMOVED: Resend API Config - No more email!
     }
 
     // ==============================
@@ -88,7 +85,7 @@ class UsersController extends Controller {
                 'email' => $this->io->post('email'),
                 'username' => $this->io->post('username'),
                 'password' => password_hash($this->io->post('password'), PASSWORD_DEFAULT),
-                'role' => 'user', // admin can only be manually added by first registration
+                'role' => 'user',
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
@@ -185,7 +182,7 @@ class UsersController extends Controller {
     }
 
     // ==============================
-    // 📝 REGISTER USER (EMAIL VERIFICATION)
+    // 📝 REGISTER USER (NO EMAIL VERIFICATION)
     // ==============================
     public function register() {
         if ($this->io->method() == 'post') {
@@ -211,22 +208,19 @@ class UsersController extends Controller {
             // Determine role: first user = admin, else user
             $role = $this->UsersModel->has_admin() ? 'user' : 'admin';
 
-            // Insert user
+            // Insert user - AUTO VERIFIED NA!
             $userData = [
                 'username' => $username,
                 'email'    => $email,
                 'password' => password_hash($password, PASSWORD_DEFAULT),
                 'role'     => $role,
                 'created_at' => date('Y-m-d H:i:s'),
-                'verified_at' => null
+                'verified_at' => date('Y-m-d H:i:s') // ✅ AUTO-VERIFIED!
             ];
 
             $inserted = $this->UsersModel->insert_user($userData);
             if ($inserted) {
-                $userId = is_int($inserted) ? $inserted : $this->UsersModel->get_user_by_email($email)['id'];
-                $this->_sendVerificationEmail($userId, $email, $username);
-
-                $_SESSION['success_message'] = 'Registration successful. Check your email to verify before login.';
+                $_SESSION['success_message'] = 'Registration successful! You can now login.';
                 redirect('/auth/login');
             } else {
                 $_SESSION['error_message'] = 'Failed to register. Please try again.';
@@ -244,7 +238,7 @@ class UsersController extends Controller {
     }
 
     // ==============================
-    // 🔑 LOGIN (check verification)
+    // 🔑 LOGIN (NO VERIFICATION CHECK)
     // ==============================
     public function login() {
         $error = null;
@@ -255,9 +249,7 @@ class UsersController extends Controller {
             $user = $this->UsersModel->get_user_by_username($username);
 
             if ($user) {
-                if (empty($user['verified_at'])) {
-                    $error = "Account not verified. Check your email for the verification link.";
-                } elseif ($this->auth->login($username, $password)) {
+                if ($this->auth->login($username, $password)) {
                     $_SESSION['user'] = [
                         'id'       => $user['id'],
                         'username' => $user['username'],
@@ -286,77 +278,8 @@ class UsersController extends Controller {
     }
 
     // ==============================
-    // ✅ VERIFY EMAIL
+    // ✅ VERIFY EMAIL - REMOVED NA!
     // ==============================
-    public function verify($id = null) {
-        if (!$id) {
-            $_SESSION['error_message'] = 'Invalid verification link.';
-            redirect('/auth/login');
-        }
-
-        $user = $this->UsersModel->get_user_by_id($id);
-        if (!$user) {
-            $_SESSION['error_message'] = 'User not found.';
-            redirect('/auth/login');
-        }
-
-        if (!empty($user['verified_at'])) {
-            $_SESSION['success_message'] = 'Account already verified. You can login now.';
-            redirect('/auth/login');
-        }
-
-        if ($this->UsersModel->update_user($id, ['verified_at' => date('Y-m-d H:i:s')])) {
-            $_SESSION['success_message'] = 'Email verified successfully. You can now login.';
-        } else {
-            $_SESSION['error_message'] = 'Failed to verify email. Contact admin.';
-        }
-
-        redirect('/auth/login');
-    }
-
-    // ==============================
-    // ✉️ SEND VERIFICATION EMAIL (RESEND API)
-    // ==============================
-    private function _sendVerificationEmail($userId, $toEmail, $toName) {
-        $verifyLink = site_url("auth/verify/{$userId}");
-        
-        $emailData = [
-            'from' => $this->fromName . ' <' . $this->fromEmail . '>',
-            'to' => $toEmail,
-            'subject' => 'Please verify your email',
-            'html' => "
-                <p>Hi " . htmlspecialchars($toName) . ",</p>
-                <p>Thank you for registering. Please click the link below to verify your email:</p>
-                <p><a href='{$verifyLink}'>Verify my email</a></p>
-                <p>If the link doesn't work, copy & paste this URL into your browser: {$verifyLink}</p>
-                <p>— {$this->fromName}</p>
-            ",
-            'text' => "Hi {$toName},\nThank you for registering. Please verify your email: {$verifyLink}\n— {$this->fromName}"
-        ];
-
-        return $this->_sendResendEmail($emailData);
-    }
-
-    // ==============================
-    // 🔧 RESEND API HELPER FUNCTION
-    // ==============================
-    private function _sendResendEmail($emailData) {
-        $ch = curl_init();
-        
-        curl_setopt($ch, CURLOPT_URL, 'https://api.resend.com/emails');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($emailData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->resendApiKey
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        return $httpCode === 200;
-    }
+    // Wala nang email verification function
 }
 ?>
